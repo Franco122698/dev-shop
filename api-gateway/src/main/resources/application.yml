@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - AddRequestHeader=X-Request-id, ${random.uuid}
+      routes:
+        - id: inventory-service
+          uri: ${INVENTORY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/inventory/**
+          filters:
+            - StripPrefix=0
+
+        - id: order-service
+          uri: ${ORDER_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - StripPrefix=0
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,gateway
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+logging:
+  level:
+    com.devshop: INFO
+    org.springframework.cloud.gateway: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - %X{traceId} - %msg%n"
+
+# JWT Configuration (Phase 6)
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-in-production}
+  expiration: ${JWT_EXPIRATION:86400}
+

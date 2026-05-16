@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: order-service
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:ep-fancy-cake-aoo5cpag.c-2.ap-southeast-1.aws.neon.tech:5432}/${DB_NAME:neondb}?sslmode=require
+    username: ${DB_USER:neondb_owner}
+    password: ${DB_PASSWORD:npg_D6JoRyB0vikc}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+server:
+  port: 8082
+  servlet:
+    context-path: /
+
+inventory:
+  service:
+    url: ${INVENTORY_SERVICE_URL:http://localhost:8081}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 20000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus,circuitbreakers
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  health:
+    circuitbreakers:
+      enabled: true
+
+logging:
+  level:
+    com.devshop: INFO
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - %X{traceId} - %msg%n"
+

@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: devshop-postgres
+    environment:
+      POSTGRES_DB: devshop_db
+      POSTGRES_USER: devshop_user
+      POSTGRES_PASSWORD: devshop_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - devshop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U devshop_user" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Inventory Service
+  inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: devshop_db
+      DB_USER: devshop_user
+      DB_PASSWORD: devshop_password
+      SPRING_PROFILE: docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devshop-network
+
+  # Order Service
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: devshop_db
+      DB_USER: devshop_user
+      DB_PASSWORD: devshop_password
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
+      SPRING_PROFILE: docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      inventory-service:
+        condition: service_started
+    networks:
+      - devshop-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
+      ORDER_SERVICE_URL: http://order-service:8082
+      SPRING_PROFILE: docker
+    depends_on:
+      - inventory-service
+      - order-service
+    networks:
+      - devshop-network
+
+volumes:
+  postgres_data:
+
+networks:
+  devshop-network:
+    driver: bridge
+
